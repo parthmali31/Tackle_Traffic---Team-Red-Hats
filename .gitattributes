@@ -1,2 +1,589 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smart Traffic Insights - Two Page with Map</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 0;
+    background: linear-gradient(135deg, #72EDF2 10%, #5151E5 100%);
+    color: #222;
+  }
+  header {
+    background: #1e40af;
+    color: white;
+    padding: 15px 20px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+  nav button {
+    background: #3b82f6;
+    border: none;
+    padding: 12px 18px;
+    margin: 0 8px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    border-radius: 30px;
+    font-size: 1.1rem;
+    transition: background-color 0.25s ease, transform 0.3s ease;
+  }
+  nav button:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+  }
+  nav button.active {
+    background: #facc15;
+    color: #1e40af;
+    font-weight: 900;
+    box-shadow: 0 0 8px #facc15;
+  }
+  main {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 30px 40px;
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  h1, h2 {
+    color: #1e40af;
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: 800;
+  }
+  p {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto 1.8rem auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 1rem;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 12px 12px;
+    text-align: center;
+  }
+  th {
+    background: #2563eb;
+    color: white;
+    letter-spacing: 1.5px;
+  }
+  tbody tr:nth-child(even) {
+    background: #f3f4f6;
+  }
+  .rush-hour {
+    color: red;
+    font-weight: 700;
+  }
+  input, select {
+    width: calc(33.33% - 18px);
+    padding: 12px 14px;
+    margin: 10px 9px 20px 9px;
+    border-radius: 20px;
+    border: 1.5px solid #94a3b8;
+    font-size: 1rem;
+    transition: border-color 0.25s ease;
+    text-align: center;
+    font-weight: 600;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 8px #60a5fa;
+  }
+  #btnAddRecord {
+    background: #22c55e;
+    border: none;
+    padding: 14px 26px;
+    font-size: 1.2rem;
+    color: white;
+    cursor: pointer;
+    border-radius: 30px;
+    font-weight: 800;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+  }
+  #btnAddRecord:hover {
+    background: #16a34a;
+  }
+  #btnShowAnalysis {
+    background: #eab308;
+    border: none;
+    padding: 12px 24px;
+    color: #1e40af;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 25px;
+    margin-top: 24px;
+    transition: background-color 0.3s ease;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  #btnShowAnalysis:hover {
+    background: #ca8a04;
+  }
+  #analysis {
+    margin-top: 20px;
+    font-style: italic;
+    font-size: 1.1rem;
+    color: #1e40af;
+    text-align: center;
+  }
+  canvas {
+    display: block;
+    max-width: 700px;
+    margin: 20px auto 40px auto;
+  }
+  #mapContainer {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    margin: 30px 0;
+  }
+  .map-square {
+    width: 270px;
+    margin: 15px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
+    overflow: hidden;
+    background: #f0f4ff;
+  }
+  .map-square h3 {
+    text-align: center;
+    color: #1e40af;
+    margin: 10px 0;
+  }
+  .map-square img {
+    width: 100%;
+    display: block;
+  }
+  .red-spot {
+    position: relative;
+  }
+  .red-spot::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: rgba(255,0,0,0.85);
+    border-radius: 50%;
+    border: 2px solid white;
+    top: 45%;
+    left: 45%;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Smart Traffic Insights</h1>
+  <nav>
+    <button id="btnHome" class="active">Home</button>
+    <button id="btnTraffic">Traffic Data</button>
+  </nav>
+</header>
+
+<main id="content"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const btnHome = document.getElementById('btnHome');
+  const btnTraffic = document.getElementById('btnTraffic');
+  const content = document.getElementById('content');
+
+  let trafficData = [
+    { junction: "Rajwada", hour: 8, vehicles: 65 },
+    { junction: "MG Road", hour: 9, vehicles: 72 },
+    { junction: "Palasia", hour: 7, vehicles: 58 },
+    { junction: "Vijay Nagar", hour: 18, vehicles: 80 },
+    { junction: "Indraprastha", hour: 19, vehicles: 68 }
+  ];
+
+  let trafficChart;
+
+  function renderHome() {
+    content.innerHTML = `
+      <h2>Welcome to Smart Traffic Insights</h2>
+      <p>This system helps analyze traffic patterns in Indian cities like Indore.</p>
+      <p>Discover vehicle volume trends to improve city planning and mobility.</p>
+
+      <div style="background-color:#2563eb; color:white; font-weight: 800; text-align:center; padding: 12px 0; margin:30px auto 25px auto; border-radius: 12px; font-size:1.3rem; max-width: 600px;">
+        Smart Traffic Insights Workflow
+      </div>
+
+      <div class="flowchart" aria-label="Smart Traffic Insights Workflow" style="margin-bottom: 40px;">
+        <div class="step" tabindex="0" data-step="data">Data Collection</div>
+        <svg class="arrow arrow-down" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="margin: 5px auto; display: block; width: 30px; height: 30px;">
+          <path d="M12 5v14m0 0l-7-7m7 7l7-7" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="step" tabindex="0" data-step="processing">Processing</div>
+        <svg class="arrow arrow-down" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="margin: 5px auto; display: block; width: 30px; height: 30px;">
+          <path d="M12 5v14m0 0l-7-7m7 7l7-7" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="step" tabindex="0" data-step="model">Model</div>
+        <svg class="arrow arrow-down" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="margin: 5px auto; display: block; width: 30px; height: 30px;">
+          <path d="M12 5v14m0 0l-7-7m7 7l7-7" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="step" tabindex="0" data-step="output">Output</div>
+      </div>
+      <div id="detailData" class="detail" style="margin-bottom: 30px;">
+        <strong>Data Collection:</strong>
+        <ul>
+          <li>Traffic information collected from key junctions/squares.</li>
+          <li>Information includes vehicle counts by hour.</li>
+          <li>Data updated continuously for real-time accuracy.</li>
+          <li>Data quality checked and cleaned for consistency.</li>
+          <li>Wide coverage to capture overall city traffic flow.</li>
+        </ul>
+      </div>
+      <div id="detailProcessing" class="detail" style="margin-bottom: 30px;">
+        <strong>Processing:</strong>
+        <ul>
+          <li>Data cleaning and anomaly removal.</li>
+          <li>Aggregation of data per junction/hour.</li>
+          <li>Normalization and feature extraction.</li>
+          <li>Data formatted for input to AI models.</li>
+          <li>Preparation of datasets for model training.</li>
+        </ul>
+      </div>
+      <div id="detailModel" class="detail" style="margin-bottom: 30px;">
+        <strong>Model:</strong>
+        <ul>
+          <li>AI-based prediction models used.</li>
+          <li>Training on historical traffic data.</li>
+          <li>Continuous learning with new data.</li>
+          <li>Prediction of peak traffic times and volumes.</li>
+          <li>Validation and accuracy checks on results.</li>
+        </ul>
+      </div>
+      <div id="detailOutput" class="detail" style="margin-bottom: 30px;">
+        <strong>Output:</strong>
+        <ul>
+          <li>Visual dashboards showing traffic intensity.</li>
+          <li>Notifications for citizens on peak congestion.</li>
+          <li>Optimized delivery routes for logistics companies.</li>
+          <li>Reports for city planning and traffic management.</li>
+          <li>Real-time updates for emergency response.</li>
+        </ul>
+      </div>
+
+
+      <h2 style="text-align:center; margin-bottom: 25px;">Traffic Hotspots in Indore</h2>
+      <div id="mapContainer">
+        <div class="map-square">
+          <h3>Rajwada</h3>
+          <div class="red-spot" style="position: relative;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/b/bd/Rajwada_Palace_Indore_2.jpg" alt="Rajwada" />
+          </div>
+        </div>
+        <div class="map-square">
+          <h3>MG Road</h3>
+          <div class="red-spot">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/a/ab/Mahatma_Gandhi_Road_in_Indore_1.jpg" alt="MG Road" />
+          </div>
+        </div>
+        <div class="map-square">
+          <h3>Palasia</h3>
+          <div class="red-spot">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/3b/Palasia_Indore_2020.jpg" alt="Palasia" />
+          </div>
+        </div>
+        <div class="map-square">
+          <h3>Vijay Nagar</h3>
+          <div class="red-spot">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/d/d4/Vijay_Nagar_Indore_01.jpg" alt="Vijay Nagar" />
+          </div>
+        </div>
+        <div class="map-square">
+          <h3>Indraprastha</h3>
+          <div class="red-spot">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b3/Indraprastha_Town_Square_Indore.jpg" alt="Indraprastha" />
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+
+  function generateTableRows(data) {
+    return data.map(row => {
+      const rushClass = (row.hour >=7 && row.hour <=10) || (row.hour >=17 && row.hour <=20)
+        ? 'rush-hour' : '';
+      return `<tr>
+        <td>${row.junction}</td>
+        <td class="${rushClass}">${row.hour}</td>
+        <td class="${rushClass}">${row.vehicles}</td>
+      </tr>`;
+    }).join('');
+  }
+
+
+  function getVehicleDataByHour(data) {
+    const hourSums = {};
+    data.forEach(({hour, vehicles}) => {
+      hourSums[hour] = (hourSums[hour] || 0) + vehicles;
+    });
+    const sortedHours = Object.keys(hourSums).map(Number).sort((a,b) => a-b);
+    const values = sortedHours.map(h => hourSums[h]);
+    return { labels: sortedHours, values };
+  }
+
+
+  function updateChart(data) {
+    const ctx = document.getElementById('trafficChart').getContext('2d');
+    const chartData = getVehicleDataByHour(data);
+    if (trafficChart) {
+      trafficChart.data.labels = chartData.labels;
+      trafficChart.data.datasets[0].data = chartData.values;
+      trafficChart.update();
+    } else {
+      trafficChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: chartData.labels,
+          datasets: [{
+            label: 'Vehicle Count by Hour',
+            data: chartData.values,
+            backgroundColor: chartData.labels.map(hour =>
+              (hour >=7 && hour <=10) || (hour >=17 && hour <=20) ? 'rgba(255,0,0,0.6)' : '#2563eb'
+            )
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: 'Hour (0-23)' }},
+            y: { title: { display: true, text: 'Vehicle Count' }, beginAtZero: true }
+          },
+          plugins: {
+            legend: { display: true, position: 'top' }
+          }
+        }
+      });
+    }
+  }
+
+
+  function renderTrafficData() {
+    const rowsHTML = generateTableRows(trafficData);
+    content.innerHTML = `
+      <h2>Traffic Data Sample</h2>
+      <table>
+        <thead>
+          <tr><th>Junction</th><th>Hour</th><th>Vehicle Count</th></tr>
+        </thead>
+        <tbody>
+          ${rowsHTML}
+        </tbody>
+      </table>
+
+
+      <h3 style="text-align:center;">Add New Traffic Record</h3>
+      <div style="display: flex; justify-content: center; flex-wrap: wrap;">
+        <input type="text" id="inputJunction" placeholder="Junction Name (e.g., Rajwada)" />
+        <input type="number" id="inputHour" placeholder="Hour (0-23)" min="0" max="23" />
+        <input type="number" id="inputVehicles" placeholder="Vehicle Count" min="0" />
+      </div>
+      <div style="text-align: center;"><button id="btnAddRecord">Add Record</button></div>
+
+
+      <canvas id="trafficChart" width="700" height="400"></canvas>
+
+
+      <button id="btnShowAnalysis">Show Traffic Analysis</button>
+      <div id="analysis"></div>
+    `;
+    updateChart(trafficData);
+    document.getElementById('btnAddRecord').addEventListener('click', () => {
+      const junction = document.getElementById('inputJunction').value.trim();
+      const hourStr = document.getElementById('inputHour').value.trim();
+      const vehiclesStr = document.getElementById('inputVehicles').value.trim();
+      const analysisDiv = document.getElementById('analysis');
+      analysisDiv.textContent = '';
+      if(!junction) {
+        alert('Please enter a junction name.');
+        return;
+      }
+      const hour = Number(hourStr);
+      if(isNaN(hour) || hour < 0 || hour > 23) {
+        alert('Please enter a valid hour between 0 and 23.');
+        return;
+      }
+      const vehicles = Number(vehiclesStr);
+      if(isNaN(vehicles) || vehicles < 0) {
+        alert('Please enter a valid vehicle count (0 or more).');
+        return;
+      }
+      trafficData.push({ junction, hour, vehicles });
+      const tbody = content.querySelector('tbody');
+      const newRow = document.createElement('tr');
+      const rushClass = (hour >= 7 && hour <= 10) || (hour >= 17 && hour <= 20) ? 'rush-hour' : '';
+      newRow.innerHTML = `<td>${junction}</td><td class="${rushClass}">${hour}</td><td class="${rushClass}">${vehicles}</td>`;
+      tbody.appendChild(newRow);
+      updateChart(trafficData);
+      document.getElementById('inputJunction').value = '';
+      document.getElementById('inputHour').value = '';
+      document.getElementById('inputVehicles').value = '';
+      alert('Record added successfully!');
+    });
+    document.getElementById('btnShowAnalysis').addEventListener('click', () => {
+      const hourSums = {};
+      trafficData.forEach(({hour, vehicles}) => {
+        hourSums[hour] = (hourSums[hour] || 0) + vehicles;
+      });
+      const maxVehicles = Math.max(...Object.values(hourSums));
+      const peakHours = Object.entries(hourSums)
+        .filter(([h,v]) => v === maxVehicles)
+        .map(([h]) => h);
+      const peakHoursStr = peakHours.join(', ');
+      const msg = `Peak traffic occurs at hour(s): ${peakHoursStr} with ${maxVehicles} vehicles combined. This indicates rush hour traffic periods.`;
+      document.getElementById('analysis').textContent = msg;
+    });
+  }
+
+
+  function switchPage(page) {
+    if (page === 'home') {
+      btnHome.classList.add('active');
+      btnTraffic.classList.remove('active');
+      renderHome();
+    } else if (page === 'traffic') {
+      btnHome.classList.remove('active');
+      btnTraffic.classList.add('active');
+      renderTrafficData();
+    }
+  }
+
+
+  switchPage('home');
+  btnHome.addEventListener('click', () => switchPage('home'));
+  btnTraffic.addEventListener('click', () => switchPage('traffic'));
+</script>
+function renderHome() {
+  content.innerHTML = `
+    <section style="max-width: 900px; margin: 0 auto;">
+      <h2 style="font-weight: 900; color: #1e3a8a; text-align: center; font-size: 2.2rem; margin-bottom: 15px;">
+        Welcome to Smart Traffic Insights
+      </h2>
+      <p style="font-size: 1.25rem; color: #4b5563; text-align: center; max-width: 700px; margin: 0 auto 50px auto; line-height: 1.8;">
+        Empowering cities like Indore with AI-driven traffic analysis to enhance mobility, reduce congestion, and optimize delivery services.
+      </p>
+
+      <div style="background-color:#2563eb; color:white; font-weight: 900; text-align:center; padding: 18px 0; margin:0 auto 45px auto; border-radius: 14px; font-size: 1.65rem; max-width: 640px; box-shadow: 0 10px 30px rgb(37 99 235 / 0.7); letter-spacing: 1.5px;">
+        Workflow Overview
+      </div>
+
+      <div style="display: flex; justify-content: space-around; max-width: 860px; margin: auto 0 60px 0; gap: 24px; flex-wrap: wrap;">
+        <div class="card" style="flex: 1 1 180px; background:#f0f9ff; border-radius: 16px; text-align: center; padding: 28px 20px; box-shadow: 0 5px 20px rgb(59 130 246 / 0.2); transition: transform 0.4s ease; cursor: pointer;"
+          tabindex="0" data-step="data">
+          <div style="font-size: 44px; color: #2563eb; margin-bottom: 14px;">&#128193;</div>
+          <h3 style="font-size: 1.3rem; font-weight: 700; color: #1e40af; margin-bottom: 8px;">Data Collection</h3>
+          <p style="color: #3b82f6; font-weight: 600;">Gathering traffic info in real-time</p>
+        </div>
+
+        <div class="card" style="flex: 1 1 180px; background:#eff6ff; border-radius: 16px; text-align: center; padding: 28px 20px; box-shadow: 0 5px 20px rgb(147 197 253 / 0.4); cursor: pointer;"
+          tabindex="0" data-step="processing">
+          <div style="font-size: 44px; color: #60a5fa; margin-bottom: 14px;">&#9881;&#65039;</div>
+          <h3 style="font-size: 1.3rem; font-weight: 700; color: #2563eb; margin-bottom: 8px;">Processing</h3>
+          <p style="color: #3b82f6; font-weight: 600;">Cleaning & preparing data</p>
+        </div>
+
+        <div class="card" style="flex: 1 1 180px; background:#dbeafe; border-radius: 16px; text-align: center; padding: 28px 20px; box-shadow: 0 5px 20px rgb(147 197 253 / 0.4); cursor: pointer;"
+          tabindex="0" data-step="model">
+          <div style="font-size: 44px; color: #3b82f6; margin-bottom: 14px;">&#128295;</div>
+          <h3 style="font-size: 1.3rem; font-weight: 700; color: #1e40af; margin-bottom: 8px;">Model</h3>
+          <p style="color: #3b82f6; font-weight: 600;">AI-based traffic prediction</p>
+        </div>
+
+        <div class="card" style="flex: 1 1 180px; background:#bfdbfe; border-radius: 16px; text-align: center; padding: 28px 20px; box-shadow: 0 5px 20px rgb(59 130 246 / 0.3); cursor: pointer;"
+          tabindex="0" data-step="output">
+          <div style="font-size: 44px; color: #2563eb; margin-bottom: 14px;">&#128196;</div>
+          <h3 style="font-size: 1.3rem; font-weight: 700; color: #2563eb; margin-bottom: 8px;">Output</h3>
+          <p style="color: #3b82f6; font-weight: 600;">Actionable insights & reports</p>
+        </div>
+      </div>
+
+      <div id="detailData" class="detail" style="max-width: 720px; margin: 15px auto 35px auto; background: #e0f2fe; border-radius: 16px; padding: 30px 28px; box-shadow: 0 12px 36px rgb(59 130 246 / 0.3); color: #1e3a8a; font-size: 1.15rem; line-height: 1.55; display: none;">
+        <strong>Data Collection Key Points:</strong>
+        <ul style="margin-top: 12px; padding-left: 20px; list-style-type: disc;">
+          <li>Traffic information collected from city junctions and sensors.</li>
+          <li>Raw vehicle counts, timestamps, and locations.</li>
+          <li>Real-time data updates for accuracy.</li>
+          <li>Data validation and pre-processing for quality.</li>
+          <li>Comprehensive coverage across city regions.</li>
+        </ul>
+      </div>
+
+      <div id="detailProcessing" class="detail" style="max-width: 720px; margin: 15px auto 35px auto; background: #dbeafe; border-radius: 16px; padding: 30px 28px; box-shadow: 0 12px 36px rgb(147 197 253 / 0.5); color: #2563eb; font-size: 1.15rem; line-height: 1.55; display: none;">
+        <strong>Processing Key Points:</strong>
+        <ul style="margin-top: 12px; padding-left: 20px; list-style-type: disc;">
+          <li>Data cleaning and removal of anomalies.</li>
+          <li>Aggregation of data per junction per hour.</li>
+          <li>Normalization and feature extraction for modeling.</li>
+          <li>Formatting data for AI model input.</li>
+          <li>Preparation of robust datasets for training.</li>
+        </ul>
+      </div>
+
+      <div id="detailModel" class="detail" style="max-width: 720px; margin: 15px auto 35px auto; background: #bbdefb; border-radius: 16px; padding: 30px 28px; box-shadow: 0 12px 36px rgb(100 149 237 / 0.5); color: #1e40af; font-size: 1.15rem; line-height: 1.55; display: none;">
+        <strong>Model Key Points:</strong>
+        <ul style="margin-top: 12px; padding-left: 20px; list-style-type: disc;">
+          <li>AI and machine learning prediction models applied.</li>
+          <li>Training based on historical traffic data.</li>
+          <li>Continuous improvement with new data input.</li>
+          <li>Prediction of peak traffic times and volumes.</li>
+          <li>Model validation and accuracy assessment.</li>
+        </ul>
+      </div>
+
+      <div id="detailOutput" class="detail" style="max-width: 720px; margin: 15px auto 50px auto; background: #bbdefb; border-radius: 16px; padding: 30px 28px; box-shadow: 0 12px 36px rgb(59 130 246 / 0.4); color: #2563eb; font-size: 1.15rem; line-height: 1.55; display: none;">
+        <strong>Output Key Points:</strong>
+        <ul style="margin-top: 12px; padding-left: 20px; list-style-type: disc;">
+          <li>Visual dashboards displaying traffic intensity.</li>
+          <li>Timely notifications on peak congestion.</li>
+          <li>Optimized routing for logistic services.</li>
+          <li>Comprehensive reports for city planners.</li>
+          <li>Real-time alerts for emergency response teams.</li>
+        </ul>
+      </div>
+
+      <h2 style="text-align:center; margin-top: 60px; margin-bottom: 25px; color: #1e40af;">Traffic Hotspots in Indore</h2>
+      <div id="mapContainer" style="display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;">
+        <div class="map-square" style="width: 270px; box-shadow: 0 6px 18px rgb(29 78 216 / 0.3); border-radius: 16px; background-color: #e0f2fe; overflow: hidden;">
+          <h3 style="color: #2563eb; text-align: center; padding-top: 14px;">Rajwada</h3>
+          <img src="https://upload.wikimedia.org/wikipedia/commons/b/bd/Rajwada_Palace_Indore_2.jpg" alt="Rajwada" style="width: 100%; object-fit: cover;"/>
+        </div>
+        <div class="map-square" style="width: 270px; box-shadow: 0 6px 18px rgb(29 78 216 / 0.3); border-radius: 16px; background-color: #e0f2fe; overflow: hidden;">
+          <h3 style="color: #2563eb; text-align: center; padding-top: 14px;">MG Road</h3>
+          <img src="https://upload.wikimedia.org/wikipedia/commons/a/ab/Mahatma_Gandhi_Road_in_Indore_1.jpg" alt="MG Road" style="width: 100%; object-fit: cover;"/>
+        </div>
+        <div class="map-square" style="width: 270px; box-shadow: 0 6px 18px rgb(29 78 216 / 0.3); border-radius: 16px; background-color: #e0f2fe; overflow: hidden;">
+          <h3 style="color: #2563eb; text-align: center; padding-top: 14px;">Palasia</h3>
+          <img src="https://upload.wikimedia.org/wikipedia/commons/3/3b/Palasia_Indore_2020.jpg" alt="Palasia" style="width: 100%; object-fit: cover;"/>
+        </div>
+        <div class="map-square" style="width: 270px; box-shadow: 0 6px 18px rgb(29 78 216 / 0.3); border-radius: 16px; background-color: #e0f2fe; overflow: hidden;">
+          <h3 style="color: #2563eb; text-align: center; padding-top: 14px;">Vijay Nagar</h3>
+          <img src="https://upload.wikimedia.org/wikipedia/commons/d/d4/Vijay_Nagar_Indore_01.jpg" alt="Vijay Nagar" style="width: 100%; object-fit: cover;"/>
+        </div>
+        <div class="map-square" style="width: 270px; box-shadow: 0 6px 18px rgb(29 78 216 / 0.3); border-radius: 16px; background-color: #e0f2fe; overflow: hidden;">
+          <h3 style="color: #2563eb; text-align: center; padding-top: 14px;">Indraprastha</h3>
+          <img src="https://upload.wikimedia.org/wikipedia/commons/b/b3/Indraprastha_Town_Square_Indore.jpg" alt="Indraprastha" style="width: 100%; object-fit: cover;"/>
+        </div>
+      </div>
+    `;
+}
+
+</body>
+</html>
